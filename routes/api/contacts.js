@@ -3,10 +3,6 @@ const router = express.Router();
 const contactModel = require("../../models/contacts");
 const Joi = require("joi");
 
-function generateUniqueId() {
-  return Math.random().toString(36).substr(2, 9);
-}
-
 const contactSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
@@ -14,12 +10,8 @@ const contactSchema = Joi.object({
 });
 
 router.get("/", async (req, res, next) => {
-  const { id } = req.params;
   try {
     const contacts = await contactModel.listContacts();
-
-    res.header("Content-Type", "application/json");
-
     res.status(200).json(contacts);
   } catch (error) {
     next(error);
@@ -28,7 +20,6 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   const { id } = req.params;
-
   try {
     const contact = await contactModel.getContactById(id);
 
@@ -57,6 +48,7 @@ router.delete("/:id", async (req, res, next) => {
     next(error);
   }
 });
+
 router.post("/", async (req, res, next) => {
   try {
     const { error } = contactSchema.validate(req.body);
@@ -65,12 +57,7 @@ router.post("/", async (req, res, next) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    const newContactId = generateUniqueId();
-
-    const newContact = { id: newContactId, ...req.body };
-
-    const addedContact = await contactModel.addContact(newContact);
-
+    const addedContact = await contactModel.addContact(req.body);
     res.status(201).json(addedContact);
   } catch (error) {
     next(error);
@@ -92,6 +79,30 @@ router.put("/:id", async (req, res, next) => {
       res.status(200).json(updatedContact);
     } else {
       res.status(404).json({ message: "Not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/:id/favorite", async (req, res, next) => {
+  const { id } = req.params;
+  const { favorite } = req.body;
+
+  try {
+    const existingContact = await contactModel.getContactById(id);
+    if (!existingContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    const updatedContact = await contactModel.updateStatusContact(id, {
+      favorite,
+    });
+
+    if (updatedContact) {
+      res.status(200).json(updatedContact);
+    } else {
+      res.status(404).json({ message: "Contact not found" });
     }
   } catch (error) {
     next(error);
